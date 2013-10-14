@@ -2,9 +2,12 @@
 This module implements the window abstraction exposed to the PyLive API.
 """
 
+import os
+import sys
+import time
+
 from OpenGL.GLUT import *
 from OpenGL.GL import *
-import time
 
 class WindowProxy(object):
     def __init__(self, window):
@@ -35,22 +38,57 @@ class Window(object):
         self.module = None
         self.module_path = None
 
-        self.redisplay = False
+        self.last_module_check_time = -1
+        self.non_autoreload_modules = {}
+        self.module_time_cache = {}
 
     def run(self):
         glutMainLoop()
 
+    def iter_modules_to_watch(self):
+        for module in sys.modules.values():
+            path = getattr(module, '__file__', None)
+            if module not in self.non_autoreload_modules and \
+                   path is not None and \
+                   os.path.isfile(path):
+                if os.path.splitext(path)[1] in ['.pyc', '.pyo', '.pyd']:
+                    path = path[:-1]
+                yield (module, path)
+
+    def set_autoreload(self, value):
+        self.autoreload = value
+
     def set_module(self, module_path):
+        # Record the current module set.
+        self.non_autoreload_modules = set(sys.modules.values())
+
         # Load the initial module.
         self.module_path = module_path
         self.module = __import__(module_path, fromlist=['register_pylive'])
 
+        # Initialize the module cache.
+        for module,path in self.iter_modules_to_watch():
+            mtime = os.stat(path).st_mtime
+            self.module_time_cache[path] = mtime
+
         # Create the actual proxy.
         self.proxy = self.module.register_pylive(self)
 
+    def check_if_needs_reload(self):
+        for module,path in self.iter_modules_to_watch():
+            mtime = os.stat(path).st_mtime
+            if mtime != self.module_time_cache.get(path):
+                return True
+
     def reload_module(self):
-        # Reload the primary module.
-        reload(self.module)
+        print >>sys.stderr, "pylive: reloading module..."
+
+        # Reload all the modified modules (except the main module).
+        for module,path in self.iter_modules_to_watch():
+            mtime = os.stat(path).st_mtime
+            if mtime != self.module_time_cache.get(path):
+                self.module_time_cache[path] = mtime
+                reload(module)
 
         self.module = __import__(self.module_path, fromlist=['register_pylive'])
         self.proxy = self.module.register_pylive(self, self.proxy)
@@ -68,6 +106,12 @@ class Window(object):
     # GLUT Callbacks
 
     def idle_callback(self):
+        current_time = time.time()
+        if current_time - self.last_module_check_time > .1:
+            if self.check_if_needs_reload():
+                self.reload_module()
+            self.last_module_check_time = current_time
+
         if self.redisplay:
             glutPostRedisplay()
             self.redisplay = False
