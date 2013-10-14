@@ -9,9 +9,38 @@ import time
 from OpenGL.GLUT import *
 from OpenGL.GL import *
 
+class DebugWidget(object):
+    def __init__(self, name, value_type, default, value_min, value_max):
+        self.name = name
+        self.default = default
+        self.value_type = value_type
+        self.value_min = value_min
+        self.value_max = value_max
+        self._value = default
+
+    @property
+    def value(self):
+        return self._value
+    @value.setter
+    def value(self, value):
+        value = self.value_type(value)
+        if value < self.value_min:
+            value = self.value_min
+        if value > self.value_max:
+            value = self.value_max
+        self._value = value
+
 class WindowProxy(object):
     def __init__(self, window):
         self.window = window
+        self.debug_widgets = {}
+
+    def bind_debug_widget(self, name, value_type, default, value_min,
+                          value_max):
+        # Create the widget
+        widget = DebugWidget(name, value_type, default, value_min, value_max)
+        self.debug_widgets[name] = widget
+        return widget
 
     def on_idle(self):
         pass
@@ -101,7 +130,14 @@ class Window(object):
                 reload(module)
 
         self.module = __import__(self.module_path, fromlist=['register_pylive'])
-        self.proxy = self.module.register_pylive(self, self.proxy)
+        last_proxy = self.proxy
+        self.proxy = self.module.register_pylive(self, last_proxy)
+
+        # Rebind any widget values.
+        for widget in self.proxy.debug_widgets.values():
+            last_widget = last_proxy.debug_widgets.get(widget.name)
+            if last_widget is not None:
+                widget.value = last_widget.value
 
         # Force an update.
         self.update()
