@@ -25,7 +25,7 @@ class App(flask.Flask):
 ###
 # Server Entrypoint
 
-def main():
+def run_pylive(module_path):
     app = App(__name__)
 
     # Setup the base logger.
@@ -50,8 +50,24 @@ def main():
     t.daemon = True
     t.start()
 
+    # Register the module to be livecoded.
+    app.window.set_module(module_path)
+    
     # Run the PyLive window main loop.
     app.window.run()
+
+def main():
+    from optparse import OptionParser, OptionGroup
+    parser = OptionParser("""%prog [options] <module path>""")
+    opts,args = parser.parse_args()
+
+    if len(args) != 1:
+        parser.error("invalid number of arguments")
+
+    module_path, = args
+
+    # Create the application.
+    run_pylive(module_path)
 
 if __name__ == '__main__':
     main()

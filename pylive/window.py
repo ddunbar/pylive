@@ -31,11 +31,32 @@ class Window(object):
         glutReshapeFunc(self.reshape_callback)
         glutSpecialFunc(self.special_callback)
 
-        self.redisplay = False
         self.proxy = WindowProxy(self)
+        self.module = None
+        self.module_path = None
+
+        self.redisplay = False
 
     def run(self):
         glutMainLoop()
+
+    def set_module(self, module_path):
+        # Load the initial module.
+        self.module_path = module_path
+        self.module = __import__(module_path, fromlist=['register_pylive'])
+
+        # Create the actual proxy.
+        self.proxy = self.module.register_pylive(self)
+
+    def reload_module(self):
+        # Reload the primary module.
+        reload(self.module)
+
+        self.module = __import__(self.module_path, fromlist=['register_pylive'])
+        self.proxy = self.module.register_pylive(self, self.proxy)
+
+        # Force an update.
+        self.update()
 
     ###
     # Public API
@@ -54,6 +75,8 @@ class Window(object):
 
     def special_callback(self, key, x, y):
         print ('special', chr(key), x, y)
+        if chr(key) == 'r':
+            self.reload_module()
 
     def reshape_callback(self, width, height):
         self.width = width
