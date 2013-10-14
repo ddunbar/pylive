@@ -27,8 +27,9 @@ class App(flask.Flask):
 ###
 # Server Entrypoint
 
-def run_pylive(module_path):
+def run_pylive(host, port, module_path):
     app = App(__name__)
+    app.debug = True
 
     # Setup the base logger.
     formatter = logging.Formatter(
@@ -45,8 +46,8 @@ def run_pylive(module_path):
     # Create a thread to run the web server.
     t = threading.Thread(
         target=app.run,
-        kwargs={ 'host' : '127.0.0.1',
-                 'port' : 5000,
+        kwargs={ 'host' : host,
+                 'port' : port,
                  'use_reloader' : False,
                  'threaded' : 4 })
     t.daemon = True
@@ -61,6 +62,11 @@ def run_pylive(module_path):
 def main():
     from optparse import OptionParser, OptionGroup
     parser = OptionParser("""%prog [options] <module path>""")
+    parser.add_option("", "--hostname", dest="hostname", type=str,
+                      help="host interface to use [%default]",
+                      default='127.0.0.1')
+    parser.add_option("", "--port", dest="port", type=int, metavar="N",
+                      help="local port to use [%default]", default=5000)
     opts,args = parser.parse_args()
 
     if len(args) != 1:
@@ -69,7 +75,7 @@ def main():
     module_path, = args
 
     # Create the application.
-    run_pylive(module_path)
+    run_pylive(opts.hostname, opts.port, module_path)
 
 if __name__ == '__main__':
     main()
