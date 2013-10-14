@@ -20,7 +20,9 @@ class App(flask.Flask):
         self.register_blueprint(api.blueprint)
 
         # Create the PyLive window.
-        self.window = window.Window('PyLive', 400, 400)
+        self.window = window.Window('PyLive',
+                                    x=850, y=0,
+                                    width=600, height=1024)
 
 ###
 # Server Entrypoint

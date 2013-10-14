@@ -13,17 +13,27 @@ class WindowProxy(object):
     def __init__(self, window):
         self.window = window
 
+    def on_idle(self):
+        pass
+
+    def on_special(self, key, x, y):
+        pass
+
+    def on_reshape(self, width, height):
+        pass
+
     def on_draw(self):
         pass
 
 class Window(object):
-    def __init__(self, name, width, height):
+    def __init__(self, name, x, y, width, height):
         self.width = width
         self.height = height
 
         # We simply assume only one Window is ever created.
         glutInit([])
         glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH)
+        glutInitWindowPosition(x, y)
         glutInitWindowSize(width, height)
         glutCreateWindow(name)
 
@@ -112,19 +122,25 @@ class Window(object):
                 self.reload_module()
             self.last_module_check_time = current_time
 
+        self.proxy.on_idle()
+
         if self.redisplay:
             glutPostRedisplay()
             self.redisplay = False
+
         time.sleep(0.001)
 
     def special_callback(self, key, x, y):
-        print ('special', chr(key), x, y)
+        # FIXME: Use command keys for any PyLive builtin bindings.
         if chr(key) == 'r':
             self.reload_module()
+
+        self.proxy.on_special(key, x, y)
 
     def reshape_callback(self, width, height):
         self.width = width
         self.height = height
+        self.proxy.on_reshape(width, height)
 
     def display_callback(self):
         glViewport(0, 0, self.width, self.height)
