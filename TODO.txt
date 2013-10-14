@@ -1,0 +1,5 @@
+======
+ TODO
+======
+
+Module errors need to be made visible in some way.
