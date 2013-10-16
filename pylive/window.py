@@ -45,6 +45,9 @@ class WindowProxy(object):
     def on_idle(self):
         pass
 
+    def on_mouse(self, x, y):
+        pass
+
     def on_special(self, key, x, y):
         pass
 
@@ -72,6 +75,7 @@ class Window(object):
         glutIdleFunc(self.idle_callback)
         glutReshapeFunc(self.reshape_callback)
         glutSpecialFunc(self.special_callback)
+        glutPassiveMotionFunc(self.passive_motion_callback)
 
         self.proxy = WindowProxy(self)
         self.module = None
@@ -165,6 +169,9 @@ class Window(object):
             self.redisplay = False
 
         time.sleep(0.001)
+
+    def passive_motion_callback(self, x, y):
+        self.proxy.on_mouse(x, y)
 
     def special_callback(self, key, x, y):
         # FIXME: Use command keys for any PyLive builtin bindings.
